@@ -1,3 +1,8 @@
+//! # Account Endpoints
+//!
+//! This module provides access to Oanda account-related endpoints.
+//! It includes functionalities for listing accounts, getting account details,
+//! managing trades, positions, and orders.
 pub mod list_positions {
     #[allow(unused_imports)]
     use chrono::prelude::*;

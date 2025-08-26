@@ -19,11 +19,7 @@ where
         if s == "0" {
             return Ok(None);
         }else{
-            let d = DateTime::from_utc(
-                            DateTime::<FixedOffset>::parse_from_rfc3339(&s)
-                            .unwrap()
-                            .naive_utc(),
-                        Utc);
+            let d = DateTime::parse_from_rfc3339(&s).unwrap().with_timezone(&Utc);
             return Ok(Some(d));
             //return Ok(Some(Utc::now()));
         }

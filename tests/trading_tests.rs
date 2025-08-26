@@ -75,11 +75,11 @@ async fn test_order_error_handling() {
 #[tokio::test]
 async fn test_order_creation_workflow_simulation() {
     let client = create_test_client();
-    let account_id = get_test_account_id(&client).await;
+    let _account_id = get_test_account_id(&client).await;
     
     // Test the structure for creating market orders
     // This tests the API structure without actually creating orders
-    let market_order = MarketOrderRequest::new()
+    let _market_order = MarketOrderRequest::new()
         .with_instrument("EUR_USD".to_string())
         .with_units(1.0)
         .with_otype("MARKET".to_string());
@@ -94,7 +94,7 @@ async fn test_order_creation_workflow_simulation() {
     println!("Market order structure created successfully for simulation");
     
     // Test limit order structure
-    let limit_order = LimitOrderRequest::new()
+    let _limit_order = LimitOrderRequest::new()
         .with_instrument("EUR_USD".to_string())
         .with_units(1.0)
         .with_price(0.5000) // Very low price, unlikely to fill
@@ -128,7 +128,7 @@ async fn test_enhanced_order_validation() {
         .await;
     
     assert!(pending_orders_result.is_ok(), "Should be able to list pending orders");
-    let pending_orders = pending_orders_result.unwrap();
+    let _pending_orders = pending_orders_result.unwrap();
     
     // Validate order data consistency
     if let Some(orders) = &all_orders.orders {
@@ -138,7 +138,6 @@ async fn test_enhanced_order_validation() {
             
             // Validate state is a known value
             if let Some(state) = &order.state {
-                let valid_states = vec!["PENDING", "FILLED", "CANCELLED", "TRIGGERED"];
                 // Note: Not enforcing strict validation as OANDA may have other states
                 println!("Found order with state: {}", state);
             }

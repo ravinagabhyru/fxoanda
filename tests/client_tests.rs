@@ -305,7 +305,6 @@ async fn test_manual_retry_logic_simulation() {
     
     let max_retries = 3;
     let mut retry_count = 0;
-    let mut last_error = None;
     
     // Simulate manual retry logic that would be useful for the client
     loop {
@@ -323,10 +322,9 @@ async fn test_manual_retry_logic_simulation() {
             },
             Err(e) => {
                 retry_count += 1;
-                last_error = Some(e);
                 
                 if retry_count >= max_retries {
-                    println!("Request failed after {} retries: {:?}", retry_count, last_error);
+                    println!("Request failed after {} retries: {:?}", retry_count, e);
                     // For test purposes, we accept that the timeout might be too aggressive
                     // In real implementation, this would be where retry logic helps
                     break;

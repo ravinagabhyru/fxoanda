@@ -18,6 +18,7 @@ pub fn create_test_client() -> Client {
 }
 
 /// Helper to get the first available account ID from the client
+#[allow(dead_code)]
 pub async fn get_test_account_id(client: &Client) -> String {
     let accounts_response = ListAccountsRequest::new()
         .remote(client)
@@ -40,10 +41,8 @@ pub fn get_test_instruments() -> Vec<&'static str> {
 
 /// Validate price precision for different instruments
 pub fn assert_price_precision(price: f64, instrument: &str) {
-    let decimal_places = match instrument {
-        "USD_JPY" | "EUR_JPY" | "GBP_JPY" | "AUD_JPY" | "CHF_JPY" => 3,
-        _ => 5,
-    };
+    // Note: We don't enforce strict decimal precision validation
+    // as OANDA may provide varying precision based on market conditions
     
     // Check that the price is reasonable (not zero and within expected range)
     assert!(price > 0.0, "Price {} for {} should be positive", price, instrument);
@@ -78,6 +77,7 @@ pub mod fixtures {
     use super::*;
     
     /// Sample candlestick test parameters
+    #[allow(dead_code)]
     pub fn sample_candle_request() -> GetInstrumentCandlesRequest {
         GetInstrumentCandlesRequest::new()
             .with_instrument("EUR_USD".to_string())
@@ -86,6 +86,7 @@ pub mod fixtures {
     }
     
     /// Sample pricing request
+    #[allow(dead_code)]
     pub fn sample_pricing_request() -> GetPricesRequest {
         GetPricesRequest::new()
             .with_instruments("EUR_USD".to_string())

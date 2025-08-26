@@ -1,3 +1,7 @@
+//! # Instrument and Pricing Endpoints
+//!
+//! This module provides access to Oanda instrument and pricing data.
+//! It allows fetching candlestick data, order books, and position books.
 pub mod get_instrument_candles {
     #[allow(unused_imports)]
     use chrono::prelude::*;
