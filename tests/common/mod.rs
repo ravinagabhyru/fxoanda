@@ -1,5 +1,6 @@
 use fxoanda::*;
 use std::env;
+use chrono::Utc;
 
 /// Create a test client with demo credentials and safety checks
 pub fn create_test_client() -> Client {
@@ -14,6 +15,15 @@ pub fn create_test_client() -> Client {
         host: api_host,
         reqwest: reqwest::Client::new(),
         authentication: api_key,
+    }
+}
+
+/// Create a mock client for unit tests - no real API calls
+pub fn create_mock_client() -> Client {
+    Client {
+        host: "mock-api.test".to_string(),
+        reqwest: reqwest::Client::new(),
+        authentication: "mock-token".to_string(),
     }
 }
 
@@ -32,6 +42,99 @@ pub async fn get_test_account_id(client: &Client) -> String {
         .id
         .clone()
         .expect("Account should have ID")
+}
+
+/// Test context for stateful integration tests - handles existing demo account state
+pub struct TestContext {
+    pub client: Client,
+    pub account_id: String,
+    pub test_run_id: String, // Unique per test run
+}
+
+impl TestContext {
+    /// Create a new test context with unique run ID
+    pub async fn new() -> Self {
+        let client = create_test_client();
+        let account_id = get_test_account_id(&client).await;
+        let test_run_id = format!("test_{}", Utc::now().timestamp_millis());
+        
+        Self { client, account_id, test_run_id }
+    }
+    
+    /// Create order with unique client request ID
+    pub fn unique_order_id(&self, test_name: &str) -> String {
+        format!("{}_{}_order", self.test_run_id, test_name)
+    }
+    
+    /// Create unique trade comment for tracking
+    pub fn unique_trade_comment(&self, test_name: &str) -> String {
+        format!("{}_{}_trade", self.test_run_id, test_name)
+    }
+    
+    /// Cleanup helper - cancel orders created by this test
+    #[allow(dead_code)]
+    pub async fn cleanup_test_orders(&self, order_ids: Vec<String>) {
+        for order_id in order_ids {
+            // Attempt to cancel order, ignore failures as orders might already be filled/cancelled
+            let _ = CancelOrderRequest::new()
+                .with_account_id(self.account_id.clone())
+                .with_order_specifier(order_id)
+                .remote(&self.client)
+                .await;
+        }
+    }
+}
+
+/// State-aware utility functions for stateful testing
+
+/// Get position for a specific instrument, handling existing state
+#[allow(dead_code)]
+pub async fn get_position_for_instrument(ctx: &TestContext, instrument: &str) -> Option<Position> {
+    let positions = ListPositionsRequest::new()
+        .with_account_id(ctx.account_id.clone())
+        .remote(&ctx.client).await.ok()?;
+    
+    positions.positions?.into_iter()
+        .find(|p| p.instrument.as_ref() == Some(&instrument.to_string()))
+}
+
+/// Create a test position and return the trade ID
+#[allow(dead_code)]
+pub async fn create_test_position(ctx: &TestContext, instrument: &str, units: i32) -> Result<String, FxError> {
+    let client_req_id = ctx.unique_order_id(&format!("position_{}", instrument));
+    
+    let market_order = MarketOrder::new()
+        .with_instrument(instrument.to_string())
+        .with_units(units as f32)
+        .with_time_in_force("FOK".to_string())
+        .with_otype("MARKET".to_string());
+    
+    let order_result = CreateMarketOrderRequest::new()
+        .with_account_id(ctx.account_id.clone())
+        .with_order(market_order)
+        .remote(&ctx.client).await?;
+    
+    // Get the trade ID from trade_opened
+    order_result.order_fill_transaction
+        .and_then(|fill| fill.trade_opened)
+        .and_then(|trade_open| trade_open.trade_id)
+        .ok_or_else(|| FxError::Validation(RequestValidationError::MissingOrderSpecifier))
+}
+
+/// Verify position units change matches expected
+pub fn verify_position_change(initial: &Option<Position>, new: &Option<Position>, expected_units: i32) {
+    let initial_units = initial.as_ref()
+        .map(|p| p.long.as_ref().map(|l| l.units.unwrap_or(0.0)).unwrap_or(0.0) + 
+                 p.short.as_ref().map(|s| s.units.unwrap_or(0.0)).unwrap_or(0.0))
+        .unwrap_or(0.0);
+    
+    let new_units = new.as_ref()
+        .map(|p| p.long.as_ref().map(|l| l.units.unwrap_or(0.0)).unwrap_or(0.0) + 
+                 p.short.as_ref().map(|s| s.units.unwrap_or(0.0)).unwrap_or(0.0))
+        .unwrap_or(0.0);
+    
+    assert_eq!((new_units - initial_units) as i32, expected_units, 
+        "Position units change doesn't match expected");
 }
 
 /// Standard test instruments

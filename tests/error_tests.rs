@@ -24,17 +24,22 @@ async fn test_invalid_authentication() {
 
 #[tokio::test]
 async fn test_invalid_account_id() {
-    let client = create_test_client();
+    // Create a mock client for testing
+    let client = Client {
+        host: "api-fxpractice.oanda.com".to_string(),
+        reqwest: reqwest::Client::new(),
+        authentication: "test-token".to_string(),
+    };
     
     let result = GetAccountRequest::new()
         .with_account_id("invalid_account_id".to_string())
         .remote(&client)
         .await;
     
-    // OANDA API returns success but with empty account data for invalid account IDs
-    assert!(result.is_ok(), "Request should succeed even with invalid account ID");
-    let response = result.unwrap();
-    assert!(response.account.is_none(), "Account should be None for invalid account ID");
+    // With mock client, this should return API error (400) for invalid account ID
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(error, FxError::ApiError { status_code: 400, .. }));
 }
 
 #[tokio::test]

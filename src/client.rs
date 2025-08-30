@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use crate::*;
 
 /// The main client for interacting with the Oanda V20 API.
@@ -31,7 +29,8 @@ pub struct Client {
     pub authentication: String,
 }
 
-macro_rules! client_requests {
+// Macro for modules that still return Box<dyn Error>
+macro_rules! client_requests_old {
     ($($func:ident($request:ident) -> $response:ident),*) => {
       $(         
          impl Client {
@@ -43,9 +42,65 @@ macro_rules! client_requests {
     };
 }
 
-client_requests!( candles(GetInstrumentCandlesRequest) -> GetInstrumentCandlesResponse,
-                  orderbook(GetOrderBookRequest) -> GetOrderBookResponse,
-                  positionbook(GetPositionBookRequest) -> GetPositionBookResponse,
-                  pricing(GetPricesRequest) -> GetPricesResponse,
-                  accounts(ListAccountsRequest) -> ListAccountsResponse,
-                  account_summary(GetAccountSummaryRequest) -> GetAccountSummaryResponse);
+// Macro for migrated modules that return FxError
+macro_rules! client_requests_new {
+    ($($func:ident($request:ident) -> $response:ident),*) => {
+      $(         
+         impl Client {
+           pub async fn $func( &self, x: $request ) -> Result<$response, FxError> {
+             x.remote(&self).await
+           }
+         }
+       )*
+    };
+}
+
+client_requests_old!( 
+                      // accounts(ListAccountsRequest) -> ListAccountsResponse // TODO: Fix ListAccountsRequest generation
+                      );
+
+client_requests_new!( 
+    // Account functions
+    list_accounts(ListAccountsRequest) -> ListAccountsResponse,
+    get_account(GetAccountRequest) -> GetAccountResponse,
+    account_summary(GetAccountSummaryRequest) -> GetAccountSummaryResponse,
+    account_instruments(GetAccountInstrumentsRequest) -> GetAccountInstrumentsResponse,
+    configure_account(ConfigureAccountRequest) -> ConfigureAccountResponse,
+    account_changes(GetAccountChangesRequest) -> GetAccountChangesResponse,
+    // Position functions
+    list_positions(ListPositionsRequest) -> ListPositionsResponse,
+    list_open_positions(ListOpenPositionsRequest) -> ListOpenPositionsResponse,
+    get_position(GetPositionRequest) -> GetPositionResponse,
+    close_position(ClosePositionRequest) -> ClosePositionResponse,
+    // Trade functions
+    list_trades(ListTradesRequest) -> ListTradesResponse,
+    list_open_trades(ListOpenTradesRequest) -> ListOpenTradesResponse,
+    get_trade(GetTradeRequest) -> GetTradeResponse,
+    close_trade(CloseTradeRequest) -> CloseTradeResponse,
+    set_trade_client_extensions(SetTradeClientExtensionsRequest) -> SetTradeClientExtensionsResponse,
+    set_trade_dependent_orders(SetTradeDependentOrdersRequest) -> SetTradeDependentOrdersResponse,
+    // Order functions
+    create_market_order(CreateMarketOrderRequest) -> CreateMarketOrderResponse,
+    create_limit_order(CreateLimitOrderRequest) -> CreateLimitOrderResponse,
+    create_stop_order(CreateStopOrderRequest) -> CreateStopOrderResponse,
+    list_orders(ListOrdersRequest) -> ListOrdersResponse,
+    list_pending_orders(ListPendingOrdersRequest) -> ListPendingOrdersResponse,
+    get_order(GetOrderRequest) -> GetOrderResponse,
+    replace_order(ReplaceOrderRequest) -> ReplaceOrderResponse,
+    cancel_order(CancelOrderRequest) -> CancelOrderResponse,
+    set_order_client_extensions(SetOrderClientExtensionsRequest) -> SetOrderClientExtensionsResponse,
+    // Transaction functions
+    list_transactions(ListTransactionsRequest) -> ListTransactionsResponse,
+    get_transaction(GetTransactionRequest) -> GetTransactionResponse,
+    get_transaction_range(GetTransactionRangeRequest) -> GetTransactionRangeResponse,
+    get_transactions_since_id(GetTransactionsSinceIdRequest) -> GetTransactionsSinceIdResponse,
+    stream_transactions(StreamTransactionsRequest) -> StreamTransactionsResponse,
+    // Pricing functions
+    pricing(GetPricesRequest) -> GetPricesResponse,
+    stream_pricing(StreamPricingRequest) -> StreamPricingResponse,
+    account_instrument_candles(GetAccountInstrumentCandlesRequest) -> GetAccountInstrumentCandlesResponse,
+    // Instrument functions  
+    candles(GetInstrumentCandlesRequest) -> GetInstrumentCandlesResponse,
+    orderbook(GetOrderBookRequest) -> GetOrderBookResponse,
+    positionbook(GetPositionBookRequest) -> GetPositionBookResponse
+);

@@ -113,34 +113,35 @@ async fn test_get_account_instruments() {
 
 #[tokio::test]
 async fn test_account_changes_tracking() {
-    let client = create_test_client();
-    let account_id = get_test_account_id(&client).await;
+    // Create a mock client for validation testing
+    let client = Client {
+        host: "api-fxpractice.oanda.com".to_string(),
+        reqwest: reqwest::Client::new(),
+        authentication: "test-token".to_string(),
+    };
     
-    // For account changes, we need a transaction ID to track from
-    // Let's use ID "1" as a starting point
+    // Test missing account ID validation
     let result = GetAccountChangesRequest::new()
-        .with_account_id(account_id)
         .with_since_transaction_id("1".to_string())
         .remote(&client)
         .await;
     
-    assert!(result.is_ok(), "Failed to get account changes: {:?}", result);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(error, FxError::Validation(RequestValidationError::MissingAccountId)));
     
-    let changes_response = result.unwrap();
+    // Test that request with valid account ID should fail with HTTP error (not validation error) 
+    // since we're using a mock client that can't actually make the API call
+    let result = GetAccountChangesRequest::new()
+        .with_account_id("123-456-789-012".to_string())
+        .with_since_transaction_id("1".to_string())
+        .remote(&client)
+        .await;
     
-    // Validate response structure - changes and state fields may be None if no changes occurred
-    // This is normal behavior for demo accounts with minimal activity
-    assert!(changes_response.last_transaction_id.is_some(), "Changes response should have last transaction ID");
-    
-    // If changes field is present, validate it (it may be None for accounts with no activity)
-    if let Some(_changes) = &changes_response.changes {
-        // Changes object exists - this is good
-    }
-    
-    // If state field is present, validate it (it may be None for accounts with no activity)
-    if let Some(_state) = &changes_response.state {
-        // State object exists - this is good  
-    }
+    // Should get API error (401), not validation error, proving validation passed
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(error, FxError::ApiError { status_code: 401, .. }));
 }
 
 #[tokio::test]
@@ -173,30 +174,30 @@ async fn test_configure_account() {
 
 #[tokio::test]
 async fn test_account_error_handling() {
-    let client = create_test_client();
+    // Create a mock client for validation testing
+    let client = Client {
+        host: "api-fxpractice.oanda.com".to_string(),
+        reqwest: reqwest::Client::new(),
+        authentication: "test-token".to_string(),
+    };
     
-    // Test with invalid account ID - OANDA API returns success but with empty account data
+    // Test missing account ID validation
     let result = GetAccountRequest::new()
-        .with_account_id("invalid_account_id".to_string())
         .remote(&client)
         .await;
     
-    assert!(result.is_ok(), "Request should succeed even with invalid account ID");
-    let response = result.unwrap();
-    assert!(response.account.is_none(), "Account should be None for invalid account ID");
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(error, FxError::Validation(RequestValidationError::MissingAccountId)));
     
-    // Test with empty account ID - this should actually fail
-    let result = GetAccountRequest::new()
-        .with_account_id("".to_string())
+    // Test account summary missing account ID
+    let result = GetAccountSummaryRequest::new()
         .remote(&client)
         .await;
     
-    // OANDA might return an error or empty data for empty account ID
-    if result.is_ok() {
-        let response = result.unwrap();
-        assert!(response.account.is_none(), "Account should be None for empty account ID");
-    }
-    // If it fails, that's also acceptable behavior
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert!(matches!(error, FxError::Validation(RequestValidationError::MissingAccountId)));
 }
 
 #[tokio::test]

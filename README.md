@@ -3,9 +3,11 @@
 This is an unofficial [Oanda](https://wwww.oanda.com/) API client. This client is still
 an experimental work in progress however it is reasonably functional.
 
-The client is generated from the Oanda V20 API definitions. The current state of the client
-API is low-level but usable however I would like to see a more ergonomic layer developed on
-top.
+The client implements the Oanda V20 REST API with structured error handling and type-safe requests.
+For the latest API documentation, refer to the [official OANDA v20 API documentation](https://developer.oanda.com/rest-live-v20/introduction/).
+
+The current state of the client API is low-level but usable however I would like to see a more 
+ergonomic layer developed on top.
 
 ## Installation
 

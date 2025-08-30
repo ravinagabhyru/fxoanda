@@ -281,61 +281,72 @@ async fn test_position_modification_workflow() {
         .remote(&client)
         .await;
     
-    assert!(initial_position_result.is_ok(), "Should be able to get initial position state");
-    let initial_position = initial_position_result.unwrap();
+    // Handle both cases: position exists or doesn't exist (404 NO_SUCH_POSITION)
+    let initial_position = match initial_position_result {
+        Ok(position_response) => Some(position_response),
+        Err(FxError::ApiError { status_code: 404, error_code, .. }) if error_code == "NO_SUCH_POSITION" => {
+            println!("No existing USD_JPY position found - this is expected for fresh demo accounts");
+            None
+        },
+        Err(e) => panic!("Unexpected error getting position state: {:?}", e),
+    };
     
     // Test position state tracking
-    if let Some(position) = &initial_position.position {
-        // Validate position structure for modification tracking
-        assert!(position.instrument.is_some(), "Position should have instrument");
-        
-        let initial_long_units = position.long.as_ref()
-            .and_then(|l| l.units)
-            .unwrap_or(0.0);
-        
-        let initial_short_units = position.short.as_ref()
-            .and_then(|s| s.units)
-            .unwrap_or(0.0);
-        
-        println!("Initial position - Long: {}, Short: {}", initial_long_units, initial_short_units);
-        
-        // Test "modification" through partial closure if position exists
-        if initial_long_units != 0.0 {
-            let close_result = ClosePositionRequest::new()
+    if let Some(initial_response) = &initial_position {
+        if let Some(position) = &initial_response.position {
+            // Validate position structure for modification tracking
+            assert!(position.instrument.is_some(), "Position should have instrument");
+            
+            let initial_long_units = position.long.as_ref()
+                .and_then(|l| l.units)
+                .unwrap_or(0.0);
+            
+            let initial_short_units = position.short.as_ref()
+                .and_then(|s| s.units)
+                .unwrap_or(0.0);
+            
+            println!("Initial position - Long: {}, Short: {}", initial_long_units, initial_short_units);
+            
+            // Test "modification" through partial closure if position exists
+            if initial_long_units != 0.0 {
+                let close_result = ClosePositionRequest::new()
+                    .with_account_id(account_id.clone())
+                    .with_instrument("USD_JPY".to_string())
+                    .with_long_units("100".to_string()) // Partial modification
+                    .remote(&client)
+                    .await;
+                
+                if close_result.is_ok() {
+                    let close_response = close_result.unwrap();
+                    if close_response.long_order_create_transaction.is_some() {
+                        println!("Position modification (partial close) executed successfully");
+                    }
+                }
+            }
+            
+            // Test position state after "modification"
+            let modified_position_result = GetPositionRequest::new()
                 .with_account_id(account_id.clone())
                 .with_instrument("USD_JPY".to_string())
-                .with_long_units("100".to_string()) // Partial modification
                 .remote(&client)
                 .await;
             
-            if close_result.is_ok() {
-                let close_response = close_result.unwrap();
-                if close_response.long_order_create_transaction.is_some() {
-                    println!("Position modification (partial close) executed successfully");
+            if modified_position_result.is_ok() {
+                let modified_position = modified_position_result.unwrap();
+                
+                if let Some(mod_pos) = &modified_position.position {
+                    let modified_long_units = mod_pos.long.as_ref()
+                        .and_then(|l| l.units)
+                        .unwrap_or(0.0);
+                    
+                    println!("Modified position - Long: {}", modified_long_units);
+                    
+                    // Position modification workflow validated through state tracking
+                    assert!(true, "Position modification workflow completed");
                 }
             }
-        }
-        
-        // Test position state after "modification"
-        let modified_position_result = GetPositionRequest::new()
-            .with_account_id(account_id.clone())
-            .with_instrument("USD_JPY".to_string())
-            .remote(&client)
-            .await;
-        
-        if modified_position_result.is_ok() {
-            let modified_position = modified_position_result.unwrap();
-            
-            if let Some(mod_pos) = &modified_position.position {
-                let modified_long_units = mod_pos.long.as_ref()
-                    .and_then(|l| l.units)
-                    .unwrap_or(0.0);
-                
-                println!("Modified position - Long: {}", modified_long_units);
-                
-                // Position modification workflow validated through state tracking
-                assert!(true, "Position modification workflow completed");
-            }
+        } else {
+            println!("Position response exists but no position data - testing workflow structure");
         }
     } else {
         println!("No USD_JPY position found - testing modification workflow structure");

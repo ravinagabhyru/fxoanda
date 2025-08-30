@@ -106,15 +106,14 @@ async fn test_client_methods_exist() {
     let client = create_test_client();
     let account_id = get_test_account_id(&client).await;
     
-    // Test that the client has the expected convenience methods
-    let accounts_result = client.accounts(ListAccountsRequest::new()).await;
+    // Test that requests can be made directly 
+    let accounts_result = ListAccountsRequest::new().remote(&client).await;
     assert!(accounts_result.is_ok());
     
-    let pricing_result = client.pricing(
-        GetPricesRequest::new()
-            .with_account_id(account_id)
-            .with_instruments("EUR_USD".to_string())
-    ).await;
+    let pricing_result = GetPricesRequest::new()
+        .with_account_id(account_id)
+        .with_instruments("EUR_USD".to_string())
+        .remote(&client).await;
     assert!(pricing_result.is_ok());
 }
 
@@ -126,7 +125,7 @@ async fn test_multiple_concurrent_requests() {
     println!("Starting concurrent requests test with account_id: {}", account_id);
     
     // Helper function to check if error is due to temporary API issues
-    let is_temporary_api_error = |e: &Box<dyn std::error::Error>| -> bool {
+    let is_temporary_api_error = |e: &FxError| -> bool {
         let error_str = format!("{:?}", e);
         error_str.contains("expected value") || 
         error_str.contains("connection") || 

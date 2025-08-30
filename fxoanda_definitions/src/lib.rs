@@ -11397,7 +11397,7 @@ pub struct PriceBucket {
 
     /// The amount of liquidity offered by the PriceBucket
     #[serde(default)]
-    #[serde(rename = "liquidity", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "liquidity", skip_serializing_if = "Option::is_none", with = "serints")]
     pub liquidity: Option<i32>,
 }
 impl PriceBucket {
